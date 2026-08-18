@@ -31,7 +31,7 @@
     }
   },
   "variables": {
-    "scripturl": "https://experienceazure.blob.core.windows.net/templates/cloudlabs-custom/psscript-01.ps1",
+    "scripturl": "https://stransomware22.blob.core.windows.net/ransomware/psscript-01.ps1",
     "LabVMName": "[concat('labvm-', parameters('DeploymentID'))]",
     "location": "[resourceGroup().location]",
     "storageAccountName": "[toLower(concat('rrstore', uniqueString(resourceGroup().id, parameters('DeploymentID'))))]",

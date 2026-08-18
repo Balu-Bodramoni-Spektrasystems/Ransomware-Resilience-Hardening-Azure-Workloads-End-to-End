@@ -381,7 +381,7 @@ In this task, you will upload the required Container B output JSON and run the v
      -o table
    ```
 
-3. Run the validation for this challenge. The inline validation invokes `Validations/03-task-tamper-attempt-evidence.ps1`, which checks the server-side evidence uploaded to `lab-evidence/attacks/container-b/latest-attack-output.json`.
+3. Run the validation for this challenge. The inline validation invokes `Validations/Tamper attempt evidence captured.ps1`, which checks the server-side evidence uploaded to `lab-evidence/attacks/container-b/latest-attack-output.json`.
 
    <validation step="Tamper attempt evidence captured"/>
 

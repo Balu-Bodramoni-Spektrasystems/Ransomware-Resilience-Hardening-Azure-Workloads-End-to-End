@@ -114,22 +114,22 @@
       "lintStatus": "passed"
     },
     {
-      "path": "Validations/01-task-backup-governance.ps1",
+      "path": "Validations/Backup governance configured.ps1",
       "kind": "validation_ps1",
       "lintStatus": "passed"
     },
     {
-      "path": "Validations/02-task-tamper-protections-enabled.ps1",
+      "path": "Validations/Tamper protections enabled.ps1",
       "kind": "validation_ps1",
       "lintStatus": "passed"
     },
     {
-      "path": "Validations/03-task-tamper-attempt-evidence.ps1",
+      "path": "Validations/Tamper attempt evidence captured.ps1",
       "kind": "validation_ps1",
       "lintStatus": "passed"
     },
     {
-      "path": "Validations/04-task-recovery-investigation-completion.ps1",
+      "path": "Validations/Recovery and investigation completion.ps1",
       "kind": "validation_ps1",
       "lintStatus": "passed"
     },
@@ -173,8 +173,8 @@
     {
       "severity": "error",
       "rule": "coherence-validator-requires-unprovisioned",
-      "message": "\"Validations/04-task-recovery-investigation-completion.ps1\" requires resource type the deployment templates never create: Microsoft.Security/defenderForStorageSettings/current. A correctly-deployed lab can never pass this validator — either deploy the resource or rewrite the check against what the template actually provisions.",
-      "artifactPath": "Validations/04-task-recovery-investigation-completion.ps1"
+      "message": "\"Validations/Recovery and investigation completion.ps1\" requires resource type the deployment templates never create: Microsoft.Security/defenderForStorageSettings/current. A correctly-deployed lab can never pass this validator — either deploy the resource or rewrite the check against what the template actually provisions.",
+      "artifactPath": "Validations/Recovery and investigation completion.ps1"
     }
   ],
   "runnability": {
