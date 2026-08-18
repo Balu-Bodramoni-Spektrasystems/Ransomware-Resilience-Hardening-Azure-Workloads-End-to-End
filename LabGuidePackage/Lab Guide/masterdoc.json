@@ -1,0 +1,37 @@
+[
+  {
+    "Name": "Ransomware Resilience: Hardening Azure Workloads End to End",
+    "Language": "English",
+    "BaseURL": "https://raw.githubusercontent.com/Balu-Bodramoni-Spektrasystems/ransomware-resilience-hardening-azure-workloads-end-to-end-2NrtV/main/LabGuidePackage/Lab%20Guide/Lab%20Guide/",
+    "Files": [
+      {
+        "RawFilePath": "GettingStarted-V2.md",
+        "Order": 1
+      },
+      {
+        "RawFilePath": "Exercise-01.md",
+        "Order": 2
+      },
+      {
+        "RawFilePath": "Exercise-02.md",
+        "Order": 3
+      },
+      {
+        "RawFilePath": "Exercise-03.md",
+        "Order": 4
+      },
+      {
+        "RawFilePath": "Exercise-04.md",
+        "Order": 5
+      },
+      {
+        "RawFilePath": "Exercise-05.md",
+        "Order": 6
+      },
+      {
+        "RawFilePath": "Exercise-06.md",
+        "Order": 7
+      }
+    ]
+  }
+]

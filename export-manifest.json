@@ -1,0 +1,186 @@
+{
+  "packageId": "33e5a226-535a-47b2-9c0d-c145eda6aaa7",
+  "slug": "ransomware-resilience-hardening-azure-workloads-end-to-end-2NrtV",
+  "title": "Ransomware Resilience: Hardening Azure Workloads End to End",
+  "version": 1,
+  "exportedAt": "2026-08-18T09:39:22.199Z",
+  "exportTarget": "github_new_repo",
+  "force": false,
+  "deliverableConfig": {
+    "arm": {
+      "stages": 1,
+      "enabled": true
+    },
+    "cse": {
+      "enabled": true
+    },
+    "rbac": {
+      "enabled": true
+    },
+    "policy": {
+      "enabled": true
+    },
+    "readme": {
+      "enabled": true
+    },
+    "labGuide": {
+      "enabled": true,
+      "exercises": 6
+    },
+    "solution": {
+      "enabled": true
+    },
+    "questions": {
+      "count": 0,
+      "enabled": false
+    },
+    "specSheet": {
+      "enabled": true
+    },
+    "validations": {
+      "count": 4,
+      "enabled": true
+    }
+  },
+  "artifacts": [
+    {
+      "path": "DeploymentPackage/deploy-01.json",
+      "kind": "arm",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "DeploymentPackage/deploy-01.parameters.json",
+      "kind": "arm_params",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "DeploymentPackage/psscript-01.ps1",
+      "kind": "psscript",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-01.md",
+      "kind": "exercise_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-02.md",
+      "kind": "exercise_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-03.md",
+      "kind": "exercise_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-04.md",
+      "kind": "exercise_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-05.md",
+      "kind": "exercise_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-06.md",
+      "kind": "exercise_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/Lab Guide/GettingStarted-V2.md",
+      "kind": "getting_started",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "permissions/CustomARMPolicy/azure-policy.json",
+      "kind": "policy_json",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "permissions/CustomRBAC/custom-rbac-role.json",
+      "kind": "rbac_json",
+      "lintStatus": "warn"
+    },
+    {
+      "path": "solution-guide/solution.md",
+      "kind": "solution_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "Spec.md",
+      "kind": "spec_md",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "Validations/01-task-backup-governance.ps1",
+      "kind": "validation_ps1",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "Validations/02-task-tamper-protections-enabled.ps1",
+      "kind": "validation_ps1",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "Validations/03-task-tamper-attempt-evidence.ps1",
+      "kind": "validation_ps1",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "Validations/04-task-recovery-investigation-completion.ps1",
+      "kind": "validation_ps1",
+      "lintStatus": "passed"
+    },
+    {
+      "path": "LabGuidePackage/Lab Guide/masterdoc.json",
+      "kind": "masterdoc",
+      "lintStatus": null
+    },
+    {
+      "path": "template-config.json",
+      "kind": "template_config",
+      "lintStatus": null
+    }
+  ],
+  "errors": [],
+  "coherence": [
+    {
+      "severity": "info",
+      "rule": "coherence-validation-step-unmatched",
+      "message": "Validation step \"Backup governance configured\" has no clearly-matching validation script under Validations/. Confirm a backing .ps1/.sh exists.",
+      "artifactPath": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-01.md"
+    },
+    {
+      "severity": "info",
+      "rule": "coherence-validation-step-unmatched",
+      "message": "Validation step \"Tamper attempt evidence captured\" has no clearly-matching validation script under Validations/. Confirm a backing .ps1/.sh exists.",
+      "artifactPath": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-04.md"
+    },
+    {
+      "severity": "info",
+      "rule": "coherence-validation-step-unmatched",
+      "message": "Validation step \"Recovery and investigation completion\" has no clearly-matching validation script under Validations/. Confirm a backing .ps1/.sh exists.",
+      "artifactPath": "LabGuidePackage/Lab Guide/Lab Guide/Exercise-06.md"
+    },
+    {
+      "severity": "error",
+      "rule": "coherence-rbac-missing-provider",
+      "message": "The ARM template deploys microsoft.dataprotection/resourceguards, but the custom RBAC role's Actions never allow this provider/type — the deployment can fail with an authorization error. Add \"microsoft.dataprotection/resourceguards/write\" (or the provider wildcard, e.g. \"microsoft.dataprotection/*\") to the role's Actions.",
+      "artifactPath": "permissions/CustomRBAC/custom-rbac-role.json"
+    },
+    {
+      "severity": "error",
+      "rule": "coherence-validator-requires-unprovisioned",
+      "message": "\"Validations/04-task-recovery-investigation-completion.ps1\" requires resource type the deployment templates never create: Microsoft.Security/defenderForStorageSettings/current. A correctly-deployed lab can never pass this validator — either deploy the resource or rewrite the check against what the template actually provisions.",
+      "artifactPath": "Validations/04-task-recovery-investigation-completion.ps1"
+    }
+  ],
+  "runnability": {
+    "issues": [],
+    "blocking": 0,
+    "warning": 0,
+    "info": 0
+  }
+}

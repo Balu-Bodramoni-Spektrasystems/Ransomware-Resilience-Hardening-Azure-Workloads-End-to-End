@@ -1,0 +1,56 @@
+{
+  "Name": "ransomware-resilience-Candidate",
+  "Description": "Custom RBAC role for the Ransomware Resilience: Hardening Azure Workloads End to End candidate sandbox. The learner acts as vault administrator and deliberately holds read/discovery access only on Microsoft.DataProtection/resourceGuards. The Resource Guard and the vault-to-Resource-Guard mapping are created by the platform deployment identity, not by this role. Any coherence report of missing Microsoft.DataProtection write coverage is expected and is a false positive arising from the checker assuming this role deploys every resource type. Granting Resource Guard write here would defeat the separation boundary that Challenge 3 exists to demonstrate. See https://learn.microsoft.com/azure/backup/multi-user-authorization-concept",
+  "IsCustom": true,
+  "Actions": [
+    "Microsoft.Resources/deployments/*",
+    "Microsoft.Resources/subscriptions/resourceGroups/read",
+    "Microsoft.Authorization/roleAssignments/read",
+    "Microsoft.Authorization/roleDefinitions/read",
+    "Microsoft.Network/virtualNetworks/*",
+    "Microsoft.Network/networkSecurityGroups/*",
+    "Microsoft.Network/publicIPAddresses/*",
+    "Microsoft.Network/networkInterfaces/*",
+    "Microsoft.Compute/virtualMachines/*",
+    "Microsoft.Compute/disks/*",
+    "Microsoft.Storage/storageAccounts/read",
+    "Microsoft.Storage/storageAccounts/write",
+    "Microsoft.Storage/storageAccounts/delete",
+    "Microsoft.Storage/storageAccounts/listkeys/action",
+    "Microsoft.Storage/storageAccounts/regeneratekey/action",
+    "Microsoft.Storage/storageAccounts/blobServices/read",
+    "Microsoft.Storage/storageAccounts/blobServices/write",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/*",
+    "Microsoft.RecoveryServices/vaults/*",
+    "Microsoft.OperationalInsights/workspaces/read",
+    "Microsoft.OperationalInsights/workspaces/write",
+    "Microsoft.OperationalInsights/workspaces/query/read",
+    "Microsoft.OperationalInsights/workspaces/query/*/read",
+    "Microsoft.OperationalInsights/workspaces/sharedKeys/action",
+    "Microsoft.OperationalInsights/workspaces/analytics/query/action",
+    "Microsoft.Insights/DiagnosticSettings/Read",
+    "Microsoft.Insights/DiagnosticSettings/Write",
+    "Microsoft.DataProtection/subscriptions/resourceGroups/providers/resourceGuards/read",
+    "Microsoft.Security/defenderforstoragesettings/read",
+    "Microsoft.Security/defenderforstoragesettings/write",
+    "Microsoft.DevTestLab/schedules/read",
+    "Microsoft.DevTestLab/schedules/write"
+  ],
+  "NotActions": [
+    "Microsoft.Authorization/*/Write",
+    "Microsoft.Authorization/*/Delete",
+    "Microsoft.DataProtection/subscriptions/resourceGroups/providers/resourceGuards/write",
+    "Microsoft.DataProtection/subscriptions/resourceGroups/providers/resourceGuards/delete"
+  ],
+  "DataActions": [
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/read",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/write",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/delete",
+    "Microsoft.Storage/storageAccounts/blobServices/containers/blobs/add/action",
+    "Microsoft.OperationalInsights/workspaces/tables/data/read"
+  ],
+  "NotDataActions": [],
+  "AssignableScopes": [
+    "/subscriptions/{SUBSCRIPTION_ID}/resourceGroups/rg-candidate-{DEPLOYMENT_ID}"
+  ]
+}

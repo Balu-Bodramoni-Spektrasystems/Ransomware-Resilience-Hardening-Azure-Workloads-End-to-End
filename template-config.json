@@ -1,0 +1,12 @@
+{
+  "name": "Ransomware Resilience: Hardening Azure Workloads End to End",
+  "cloud": "azure",
+  "level": "Advanced",
+  "deploymentDurationMinutes": 180,
+  "enableLabValidation": true,
+  "hasInlineQuestions": false,
+  "customPolicy": true,
+  "customRbacRole": true,
+  "cloudScope": null,
+  "policyPack": null
+}

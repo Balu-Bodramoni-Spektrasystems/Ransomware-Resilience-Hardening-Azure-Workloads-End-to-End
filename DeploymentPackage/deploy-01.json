@@ -1,0 +1,665 @@
+{
+  "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+  "contentVersion": "1.0.0.0",
+  "metadata": {
+    "resourceGuardAuthorityModel": "Resource Guard and the Recovery Services vault backupResourceGuardProxy mapping are provisioned by the ARM/platform deployment identity. No candidate role assignment is created here; learner access is intended for read/discovery and denial observation only."
+  },
+  "parameters": {
+    "azureUserName": {
+      "type": "string"
+    },
+    "azurePassword": {
+      "type": "securestring"
+    },
+    "ODLID": {
+      "type": "string"
+    },
+    "DeploymentID": {
+      "type": "string"
+    },
+    "adminUsername": {
+      "type": "string"
+    },
+    "adminPassword": {
+      "type": "securestring"
+    },
+    "trainerUserName": {
+      "type": "string"
+    },
+    "trainerUserPassword": {
+      "type": "string"
+    }
+  },
+  "variables": {
+    "scripturl": "https://experienceazure.blob.core.windows.net/templates/cloudlabs-custom/psscript-01.ps1",
+    "LabVMName": "[concat('labvm-', parameters('DeploymentID'))]",
+    "location": "[resourceGroup().location]",
+    "storageAccountName": "[toLower(concat('rrstore', uniqueString(resourceGroup().id, parameters('DeploymentID'))))]",
+    "restoreStagingStorageAccountName": "[toLower(concat('rrstage', uniqueString(resourceGroup().id, parameters('DeploymentID'))))]",
+    "containerAName": "containera-unprotected",
+    "containerBName": "containerb-protectme",
+    "evidenceContainerName": "lab-evidence",
+    "vaultName": "[concat('rsv-', parameters('DeploymentID'))]",
+    "backupPolicyName": "vm-same-session-policy",
+    "resourceGuardName": "[concat('rg-mua-', parameters('DeploymentID'))]",
+    "resourceGuardProxyName": "default",
+    "workspaceName": "[concat('law-', parameters('DeploymentID'))]",
+    "vnetName": "[concat('vnet-', parameters('DeploymentID'))]",
+    "subnetName": "default",
+    "nsgName": "[concat('nsg-', parameters('DeploymentID'))]",
+    "publicIpName": "[concat('pip-', parameters('DeploymentID'))]",
+    "nicName": "[concat('nic-', parameters('DeploymentID'))]",
+    "dnsLabelPrefix": "[toLower(concat('rr-', parameters('DeploymentID')))]",
+    "backupFabricName": "Azure",
+    "backupContainerName": "[concat('IaasVMContainer;iaasvmcontainerv2;', resourceGroup().name, ';', variables('LabVMName'))]",
+    "backupProtectedItemName": "[concat('VM;iaasvmcontainerv2;', resourceGroup().name, ';', variables('LabVMName'))]",
+    "backupScheduleTime": "2020-01-01T02:00:00Z",
+    "shutdownScheduleName": "[concat('shutdown-computevm-', variables('LabVMName'))]",
+    "restoreDurationGuidance": "Expect VM restore to take approximately 20-45 minutes after the restore job starts.",
+    "checksumReference": "Seed files are created by the bootstrap script; use the manifest on the VM and in Container B as the same-session checksum reference.",
+    "tags": {
+      "cloudlabs-lab": "ransomware-resilience",
+      "deploymentId": "[parameters('DeploymentID')]"
+    }
+  },
+  "resources": [
+    {
+      "type": "Microsoft.Network/networkSecurityGroups",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('nsgName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "securityRules": [
+          {
+            "name": "Allow-RDP-CloudLabs-Access-Exception",
+            "properties": {
+              "description": "CloudLabs RDP access exception; not a JIT enforcement rule.",
+              "priority": 1000,
+              "access": "Allow",
+              "direction": "Inbound",
+              "protocol": "Tcp",
+              "sourcePortRange": "*",
+              "destinationPortRange": "3389",
+              "sourceAddressPrefix": "*",
+              "destinationAddressPrefix": "*"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/virtualNetworks",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('vnetName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+      ],
+      "properties": {
+        "addressSpace": {
+          "addressPrefixes": [
+            "10.42.0.0/16"
+          ]
+        },
+        "subnets": [
+          {
+            "name": "[variables('subnetName')]",
+            "properties": {
+              "addressPrefix": "10.42.1.0/24",
+              "networkSecurityGroup": {
+                "id": "[resourceId('Microsoft.Network/networkSecurityGroups', variables('nsgName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.Network/publicIPAddresses",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('publicIpName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "tags": "[variables('tags')]",
+      "properties": {
+        "publicIPAllocationMethod": "Static",
+        "dnsSettings": {
+          "domainNameLabel": "[variables('dnsLabelPrefix')]"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Network/networkInterfaces",
+      "apiVersion": "2023-05-01",
+      "name": "[variables('nicName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/virtualNetworks', variables('vnetName'))]",
+        "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+      ],
+      "properties": {
+        "ipConfigurations": [
+          {
+            "name": "ipconfig1",
+            "properties": {
+              "privateIPAllocationMethod": "Dynamic",
+              "subnet": {
+                "id": "[resourceId('Microsoft.Network/virtualNetworks/subnets', variables('vnetName'), variables('subnetName'))]"
+              },
+              "publicIPAddress": {
+                "id": "[resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName'))]"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.OperationalInsights/workspaces",
+      "apiVersion": "2025-07-01",
+      "name": "[variables('workspaceName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "sku": {
+          "name": "PerGB2018"
+        },
+        "retentionInDays": 30,
+        "features": {
+          "enableLogAccessUsingOnlyResourcePermissions": true,
+          "immediatePurgeDataOn30Days": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('storageAccountName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": true,
+        "supportsHttpsTrafficOnly": true,
+        "accessTier": "Hot",
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "defaultAction": "Allow"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts",
+      "apiVersion": "2023-01-01",
+      "name": "[variables('restoreStagingStorageAccountName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard_LRS"
+      },
+      "kind": "StorageV2",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "minimumTlsVersion": "TLS1_2",
+        "allowBlobPublicAccess": false,
+        "allowSharedKeyAccess": true,
+        "allowCrossTenantReplication": false,
+        "defaultToOAuthAuthentication": false,
+        "supportsHttpsTrafficOnly": true,
+        "publicNetworkAccess": "Enabled",
+        "accessTier": "Hot",
+        "networkAcls": {
+          "bypass": "AzureServices",
+          "defaultAction": "Allow"
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(variables('storageAccountName'), '/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "changeFeed": {
+          "enabled": true
+        },
+        "deleteRetentionPolicy": {
+          "enabled": true,
+          "days": 7
+        },
+        "containerDeleteRetentionPolicy": {
+          "enabled": true,
+          "days": 7
+        },
+        "isVersioningEnabled": true
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(variables('storageAccountName'), '/default/', variables('containerAName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ],
+      "properties": {
+        "publicAccess": "None"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(variables('storageAccountName'), '/default/', variables('containerBName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ],
+      "properties": {
+        "publicAccess": "None"
+      }
+    },
+    {
+      "type": "Microsoft.Storage/storageAccounts/blobServices/containers",
+      "apiVersion": "2023-01-01",
+      "name": "[concat(variables('storageAccountName'), '/default/', variables('evidenceContainerName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]"
+      ],
+      "properties": {
+        "publicAccess": "None"
+      }
+    },
+    {
+      "type": "Microsoft.Security/defenderForStorageSettings",
+      "apiVersion": "2025-01-01",
+      "name": "current",
+      "scope": "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName'))]"
+      ],
+      "properties": {
+        "isEnabled": true,
+        "overrideSubscriptionLevelSettings": true,
+        "malwareScanning": {
+          "onUpload": {
+            "isEnabled": false,
+            "capGBPerMonth": -1
+          }
+        },
+        "sensitiveDataDiscovery": {
+          "isEnabled": true
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Insights/diagnosticSettings",
+      "apiVersion": "2021-05-01-preview",
+      "name": "blob-platform-logs",
+      "scope": "[concat(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '/blobServices/default')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices', variables('storageAccountName'), 'default')]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+      ],
+      "properties": {
+        "workspaceId": "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]",
+        "logs": [
+          {
+            "category": "StorageRead",
+            "enabled": true
+          },
+          {
+            "category": "StorageWrite",
+            "enabled": true
+          },
+          {
+            "category": "StorageDelete",
+            "enabled": true
+          }
+        ],
+        "metrics": [
+          {
+            "category": "Transaction",
+            "enabled": true
+          }
+        ]
+      }
+    },
+    {
+      "type": "Microsoft.DataProtection/resourceGuards",
+      "apiVersion": "2022-05-01",
+      "name": "[variables('resourceGuardName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "properties": {
+        "vaultCriticalOperationExclusionList": []
+      }
+    },
+    {
+      "type": "Microsoft.RecoveryServices/vaults",
+      "apiVersion": "2022-10-01",
+      "name": "[variables('vaultName')]",
+      "location": "[variables('location')]",
+      "sku": {
+        "name": "Standard"
+      },
+      "tags": "[variables('tags')]",
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "properties": {
+        "publicNetworkAccess": "Enabled"
+      }
+    },
+    {
+      "type": "Microsoft.RecoveryServices/vaults/backupResourceGuardProxies",
+      "apiVersion": "2024-10-01",
+      "name": "[concat(variables('vaultName'), '/', variables('resourceGuardProxyName'))]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults', variables('vaultName'))]",
+        "[resourceId('Microsoft.DataProtection/resourceGuards', variables('resourceGuardName'))]"
+      ],
+      "properties": {
+        "description": "Platform-provisioned Resource Guard proxy mapping for the lab vault. Learner identity receives no standing protected-operation authority on the guard.",
+        "resourceGuardResourceId": "[resourceId('Microsoft.DataProtection/resourceGuards', variables('resourceGuardName'))]"
+      }
+    },
+    {
+      "type": "Microsoft.RecoveryServices/vaults/backupconfig",
+      "apiVersion": "2024-10-01",
+      "name": "[concat(variables('vaultName'), '/vaultconfig')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults', variables('vaultName'))]"
+      ],
+      "properties": {
+        "softDeleteFeatureState": "Enabled",
+        "softDeleteRetentionPeriodInDays": 14,
+        "enhancedSecurityState": "Enabled",
+        "storageModelType": "LocallyRedundant",
+        "storageType": "LocallyRedundant",
+        "storageTypeState": "Unlocked"
+      }
+    },
+    {
+      "type": "Microsoft.RecoveryServices/vaults/backupPolicies",
+      "apiVersion": "2022-10-01",
+      "name": "[concat(variables('vaultName'), '/', variables('backupPolicyName'))]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults', variables('vaultName'))]",
+        "[resourceId('Microsoft.DataProtection/resourceGuards', variables('resourceGuardName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupResourceGuardProxies', variables('vaultName'), variables('resourceGuardProxyName'))]"
+      ],
+      "properties": {
+        "backupManagementType": "AzureIaasVM",
+        "policyType": "V2",
+        "instantRpRetentionRangeInDays": 2,
+        "schedulePolicy": {
+          "schedulePolicyType": "SimpleSchedulePolicy",
+          "scheduleRunFrequency": "Daily",
+          "scheduleRunTimes": [
+            "[variables('backupScheduleTime')]"
+          ]
+        },
+        "retentionPolicy": {
+          "retentionPolicyType": "LongTermRetentionPolicy",
+          "dailySchedule": {
+            "retentionTimes": [
+              "[variables('backupScheduleTime')]"
+            ],
+            "retentionDuration": {
+              "count": 7,
+              "durationType": "Days"
+            }
+          }
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines",
+      "apiVersion": "2022-11-01",
+      "name": "[variables('LabVMName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "plan": {
+        "name": "win2019",
+        "publisher": "spektra",
+        "product": "cloudlabs-windows-jumpvm"
+      },
+      "identity": {
+        "type": "SystemAssigned"
+      },
+      "dependsOn": [
+        "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+      ],
+      "properties": {
+        "hardwareProfile": {
+          "vmSize": "Standard_B2s"
+        },
+        "osProfile": {
+          "computerName": "[variables('LabVMName')]",
+          "adminUsername": "[parameters('adminUsername')]",
+          "adminPassword": "[parameters('adminPassword')]"
+        },
+        "storageProfile": {
+          "imageReference": {
+            "publisher": "Spektra",
+            "offer": "cloudlabs-windows-jumpvm",
+            "sku": "win2019",
+            "version": "latest"
+          },
+          "osDisk": {
+            "createOption": "FromImage",
+            "managedDisk": {
+              "storageAccountType": "Standard_LRS"
+            }
+          }
+        },
+        "networkProfile": {
+          "networkInterfaces": [
+            {
+              "id": "[resourceId('Microsoft.Network/networkInterfaces', variables('nicName'))]"
+            }
+          ]
+        }
+      }
+    },
+    {
+      "type": "Microsoft.DevTestLab/schedules",
+      "apiVersion": "2018-09-15",
+      "name": "[variables('shutdownScheduleName')]",
+      "location": "[variables('location')]",
+      "tags": "[variables('tags')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('LabVMName'))]"
+      ],
+      "properties": {
+        "status": "Enabled",
+        "taskType": "ComputeVmShutdownTask",
+        "targetResourceId": "[resourceId('Microsoft.Compute/virtualMachines', variables('LabVMName'))]",
+        "timeZoneId": "UTC",
+        "dailyRecurrence": {
+          "time": "1900"
+        },
+        "notificationSettings": {
+          "status": "Disabled",
+          "timeInMinutes": 30,
+          "emailRecipient": "",
+          "webhookUrl": ""
+        }
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2022-11-01",
+      "name": "[concat(variables('LabVMName'), '/AzureMonitorWindowsAgent')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('LabVMName'))]",
+        "[resourceId('Microsoft.OperationalInsights/workspaces', variables('workspaceName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Azure.Monitor",
+        "type": "AzureMonitorWindowsAgent",
+        "typeHandlerVersion": "1.0",
+        "autoUpgradeMinorVersion": true,
+        "enableAutomaticUpgrade": true
+      }
+    },
+    {
+      "type": "Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems",
+      "apiVersion": "2021-08-01",
+      "name": "[concat(variables('vaultName'), '/', variables('backupFabricName'), '/', variables('backupContainerName'), '/', variables('backupProtectedItemName'))]",
+      "dependsOn": [
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', variables('vaultName'), variables('backupPolicyName'))]",
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('LabVMName'))]"
+      ],
+      "properties": {
+        "protectedItemType": "Microsoft.Compute/virtualMachines",
+        "policyId": "[resourceId('Microsoft.RecoveryServices/vaults/backupPolicies', variables('vaultName'), variables('backupPolicyName'))]",
+        "sourceResourceId": "[resourceId('Microsoft.Compute/virtualMachines', variables('LabVMName'))]",
+        "workloadType": "VM"
+      }
+    },
+    {
+      "type": "Microsoft.Compute/virtualMachines/extensions",
+      "apiVersion": "2022-11-01",
+      "name": "[concat(variables('LabVMName'), '/CustomScriptExtension')]",
+      "location": "[variables('location')]",
+      "dependsOn": [
+        "[resourceId('Microsoft.Compute/virtualMachines', variables('LabVMName'))]",
+        "[resourceId('Microsoft.Compute/virtualMachines/extensions', variables('LabVMName'), 'AzureMonitorWindowsAgent')]",
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', variables('containerAName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', variables('containerBName'))]",
+        "[resourceId('Microsoft.Storage/storageAccounts/blobServices/containers', variables('storageAccountName'), 'default', variables('evidenceContainerName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupResourceGuardProxies', variables('vaultName'), variables('resourceGuardProxyName'))]",
+        "[resourceId('Microsoft.RecoveryServices/vaults/backupFabrics/protectionContainers/protectedItems', variables('vaultName'), variables('backupFabricName'), variables('backupContainerName'), variables('backupProtectedItemName'))]"
+      ],
+      "properties": {
+        "publisher": "Microsoft.Compute",
+        "type": "CustomScriptExtension",
+        "typeHandlerVersion": "1.10",
+        "autoUpgradeMinorVersion": true,
+        "settings": {
+          "fileUris": [
+            "[variables('scripturl')]"
+          ]
+        },
+        "protectedSettings": {
+          "commandToExecute": "[concat('powershell.exe -NoProfile -NonInteractive -ExecutionPolicy Bypass -Command \"$payload = ''', base64(string(createObject('AzureUserName', parameters('azureUserName'), 'AzurePassword', parameters('azurePassword'), 'AzureTenantID', subscription().tenantId, 'AzureSubscriptionID', subscription().subscriptionId, 'ODLID', parameters('ODLID'), 'InstallCloudLabsShadow', 'true', 'DeploymentID', parameters('DeploymentID'), 'vmAdminUsername', parameters('adminUsername'), 'vmAdminPassword', parameters('adminPassword'), 'trainerUserName', parameters('trainerUserName'), 'trainerUserPassword', parameters('trainerUserPassword')))), '''; $json = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($payload)); $payloadObject = $json | ConvertFrom-Json; $params = @{ AzureUserName = [string]$payloadObject.AzureUserName; AzurePassword = [string]$payloadObject.AzurePassword; AzureTenantID = [string]$payloadObject.AzureTenantID; AzureSubscriptionID = [string]$payloadObject.AzureSubscriptionID; ODLID = [string]$payloadObject.ODLID; InstallCloudLabsShadow = [string]$payloadObject.InstallCloudLabsShadow; DeploymentID = [string]$payloadObject.DeploymentID; vmAdminUsername = [string]$payloadObject.vmAdminUsername; vmAdminPassword = [string]$payloadObject.vmAdminPassword; trainerUserName = [string]$payloadObject.trainerUserName; trainerUserPassword = [string]$payloadObject.trainerUserPassword }; ./psscript-01.ps1 @params\"')]"
+        }
+      }
+    }
+  ],
+  "outputs": {
+    "vmServerDnsName": {
+      "type": "string",
+      "value": "[reference(resourceId('Microsoft.Network/publicIPAddresses', variables('publicIpName')), '2023-05-01').dnsSettings.fqdn]"
+    },
+    "vmServerUsername": {
+      "type": "string",
+      "value": "[parameters('adminUsername')]"
+    },
+    "vmServerPassword": {
+      "type": "string",
+      "value": "[parameters('adminPassword')]"
+    },
+    "trainerUserName": {
+      "type": "string",
+      "value": "[parameters('trainerUserName')]"
+    },
+    "trainerUserPassword": {
+      "type": "string",
+      "value": "[parameters('trainerUserPassword')]"
+    },
+    "storageAccountName": {
+      "type": "string",
+      "value": "[variables('storageAccountName')]"
+    },
+    "restoreStagingStorageAccountName": {
+      "type": "string",
+      "value": "[variables('restoreStagingStorageAccountName')]"
+    },
+    "storageAccountConnectionString": {
+      "type": "string",
+      "value": "[concat('DefaultEndpointsProtocol=https;AccountName=', variables('storageAccountName'), ';AccountKey=', listKeys(resourceId('Microsoft.Storage/storageAccounts', variables('storageAccountName')), '2023-01-01').keys[0].value, ';EndpointSuffix=', environment().suffixes.storage)]"
+    },
+    "containerAName": {
+      "type": "string",
+      "value": "[variables('containerAName')]"
+    },
+    "containerBName": {
+      "type": "string",
+      "value": "[variables('containerBName')]"
+    },
+    "evidenceContainerName": {
+      "type": "string",
+      "value": "[variables('evidenceContainerName')]"
+    },
+    "recoveryVaultName": {
+      "type": "string",
+      "value": "[variables('vaultName')]"
+    },
+    "resourceGuardName": {
+      "type": "string",
+      "value": "[variables('resourceGuardName')]"
+    },
+    "resourceGuardProxyName": {
+      "type": "string",
+      "value": "[variables('resourceGuardProxyName')]"
+    },
+    "resourceGuardProxyResourceId": {
+      "type": "string",
+      "value": "[resourceId('Microsoft.RecoveryServices/vaults/backupResourceGuardProxies', variables('vaultName'), variables('resourceGuardProxyName'))]"
+    },
+    "resourceGuardAuthorityModel": {
+      "type": "string",
+      "value": "Resource Guard and vault proxy mapping are provisioned by the ARM/platform deployment identity. No candidate role assignments are created; learner access is read/discovery only for observing the MUA boundary."
+    },
+    "logAnalyticsWorkspaceName": {
+      "type": "string",
+      "value": "[variables('workspaceName')]"
+    },
+    "requesterUserName": {
+      "type": "string",
+      "metadata": {
+        "description": "Single supplied Microsoft Entra learner identity username."
+      },
+      "value": "[parameters('azureUserName')]"
+    },
+    "requesterPassword": {
+      "type": "string",
+      "metadata": {
+        "description": "Single supplied Microsoft Entra learner identity password."
+      },
+      "value": "[parameters('azurePassword')]"
+    },
+    "restoreDurationGuidance": {
+      "type": "string",
+      "value": "[variables('restoreDurationGuidance')]"
+    },
+    "checksumReference": {
+      "type": "string",
+      "value": "[variables('checksumReference')]"
+    },
+    "attackEvidencePath": {
+      "type": "string",
+      "value": "C:\\LabFiles\\RansomwareResilience\\Evidence\\container-a-attack-output.json"
+    },
+    "attackScriptPath": {
+      "type": "string",
+      "value": "C:\\LabFiles\\RansomwareResilience\\Scripts\\Invoke-BenignBlobEncryptionMimic.ps1"
+    }
+  }
+}
